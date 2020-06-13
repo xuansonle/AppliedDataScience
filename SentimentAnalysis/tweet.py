@@ -9,6 +9,7 @@ import numpy as np
 import re
 import os
 import matplotlib.pyplot as plt
+import seaborn as sns
 plt.style.use("fivethirtyeight")
 
 
@@ -31,13 +32,13 @@ api = tweepy.API(authenticate, wait_on_rate_limit=True)
 # Extract tweets from a twitter user and save them to a dataframe
 ############################################################
 posts = api.user_timeline(screen_name="BillGates",
-                          count=100, lang="en", tweet_mode="extended")
+                          count=1000, lang="en", tweet_mode="extended")
 # Print the last 5 tweets from the account
-print("Show the 5 recent tweets: ")
-i = 1
-for tweet in posts[0:5]:
-    print(f"{i}) {tweet.full_text} \n")
-    i += 1
+# print("Show the 5 recent tweets: ")
+# i = 1
+# for tweet in posts[0:5]:
+#     print(f"{i}) {tweet.full_text} \n")
+#     i += 1
 # Save to a dataframe
 df = pd.DataFrame({'Tweets': [tweet.full_text for tweet in posts]})
 
@@ -72,6 +73,14 @@ def getPolarity(text):
 df["Subjectivity"] = df['Tweets'].apply(getSubjectivity)
 df["Polarity"] = df['Tweets'].apply(getPolarity)
 
+# plt.figure(figsize=(8, 6))
+# plt.scatter(x=df["Polarity"], y=df["Subjectivity"],
+#             c=df["Polarity"], cmap="Greens", alpha=1)
+
+# plt.title("Sentiment Analysis")
+# plt.xlabel("Polarity")
+# plt.ylabel("Subjectivity")
+# plt.show()
 
 ############################################################
 # Plot Word Cloud
@@ -80,9 +89,9 @@ allWords = ' '.join([tweet for tweet in df['Tweets']])
 wordCloud = WordCloud(width=500, height=300, random_state=21,
                       max_font_size=119).generate(allWords)
 
-plt.imshow(wordCloud, interpolation="bilinear")
-plt.axis("off")
-plt.show()
+# plt.imshow(wordCloud, interpolation="bilinear")
+# plt.axis("off")
+# plt.show()
 
 
 ############################################################
@@ -97,4 +106,24 @@ def getAnalysis(score):
         return "Positive"
 
 
-df["Analysis"] = df
+df["Analysis"] = df["Polarity"].apply(getAnalysis)
+
+
+############################################################
+# Summarise
+############################################################
+df_positive = df[df["Analysis"] == "Positive"].sort_values(
+    by=["Polarity"], ascending=False)
+df_neutral = df[df["Analysis"] == "Neutral"].sort_values(by=["Polarity"])
+df_negative = df[df["Analysis"] == "Negative"].sort_values(by=["Polarity"])
+
+ax = sns.countplot(x="Analysis", data=df, order=[
+                   'Positive', "Neutral", "Negative"])
+for p in ax.patches:
+    height = p.get_height()
+    ax.text(p.get_x() + p.get_width() / 2,
+            height + 3, f"{height} ({round(100 * height / df.shape[0], 2)} %)", ha="center")
+
+ax.set_title(f"Sentiment Analysis. Total: {df.shape[0]} Tweets")
+ax.set_xlabel("Sentiment")
+plt.show()
